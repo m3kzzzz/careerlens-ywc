@@ -48,7 +48,12 @@ export function photoState(photo: Photo, extraction: PhotoExtraction | undefined
 }
 
 /** Everything the processing screen shows, derived from stored rows only. */
-export function summarizeBatch(photos: Photo[], extractions: Map<string, PhotoExtraction>): BatchSummary {
+export function summarizeBatch(
+  photos: Photo[],
+  extractions: Map<string, PhotoExtraction>,
+  /** After grouping: photoId → the company it was grouped into, so the list shows real companies. */
+  groupedNames: Map<string, string> = new Map(),
+): BatchSummary {
   const read = photos.filter((p) => p.status === "done").length;
   const failed = photos.filter((p) => p.status === "failed").length;
   const retrying = photos.filter((p) => p.status === "reading" && p.retryAt).length;
@@ -78,7 +83,10 @@ export function summarizeBatch(photos: Photo[], extractions: Map<string, PhotoEx
       const existing = links.get(l.normalized);
       if (!existing || (existing.companyName === null && l.companyName !== null)) links.set(l.normalized, { ...l, photoIndex: i + 1 });
     }
-    for (const c of ex.companies) {
+    const grouped = groupedNames.get(photo.id);
+    // Single-company photos are listed under the company grouping chose (e.g. a brand folded into its employer).
+    const photoCompanies = grouped && ex.companies.length <= 1 ? [{ name: { value: grouped, status: "auto" as const } }] : ex.companies;
+    for (const c of photoCompanies) {
       // Same normalization as grouping, so "Lumen Pay Co., Ltd." and "Lumen Pay" show as one.
       const key = normalizeCompanyName(c.name.value);
       const entry = companies.get(key) ?? {
@@ -93,11 +101,11 @@ export function summarizeBatch(photos: Photo[], extractions: Map<string, PhotoEx
       entry.photoCount = entry.photoIds.size;
       entry.uncertain ||= c.name.status === "uncertain";
       for (const o of ex.opportunities) {
-        const owner = o.companyName ? normalizeCompanyName(o.companyName) : ex.companies.length === 1 ? key : null;
+        const owner = photoCompanies.length === 1 ? key : o.companyName ? normalizeCompanyName(o.companyName) : null;
         if (owner === key && !entry.titles.includes(o.title.value)) entry.titles.push(o.title.value);
       }
       entry.hasApplicationForm ||= ex.links.some(
-        (l) => l.purpose === "application_form" && (l.companyName ? normalizeCompanyName(l.companyName) : key) === key,
+        (l) => l.purpose === "application_form" && (photoCompanies.length === 1 || (l.companyName ? normalizeCompanyName(l.companyName) : key) === key),
       );
       companies.set(key, entry);
     }

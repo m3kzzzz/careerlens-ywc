@@ -16,6 +16,7 @@ export type ExtractErrorCode =
   | "too_large"
   | "forbidden"
   | "rate_limited" // our limiter or Gemini 429
+  | "quota_exhausted" // Gemini per-day quota used up
   | "model_unavailable" // wrong model ID or model not enabled for this key
   | "auth" // key rejected
   | "upstream" // Gemini 5xx / network

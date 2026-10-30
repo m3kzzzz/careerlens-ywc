@@ -18,6 +18,7 @@ const STATUS: Record<ExtractError["code"], number> = {
   too_large: 413,
   forbidden: 403,
   rate_limited: 429,
+  quota_exhausted: 429,
   model_unavailable: 502,
   auth: 502,
   upstream: 502,

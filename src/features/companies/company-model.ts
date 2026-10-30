@@ -73,6 +73,8 @@ export interface CompanyView {
   links: Link[];
   /** Company-wide application forms not tied to one position. */
   generalApplyLinks: Link[];
+  /** Company-wide careers pages or job channels (e.g. a LINE talent community). */
+  generalCareerLinks: Link[];
   actions: Set<ActionKind>;
   /** Earliest upcoming deadline, opening or event date. */
   nextDate?: ISODate;
@@ -228,6 +230,7 @@ export function buildCompanyViews(lib: Library, today: Date = new Date()): Compa
       contacts,
       links,
       generalApplyLinks: links.filter((l) => l.purpose === "application_form" && l.opportunityIds.length === 0),
+      generalCareerLinks: links.filter((l) => l.purpose === "careers" && l.opportunityIds.length === 0),
       actions,
       nextDate: upcoming[0],
       uncertainCount,

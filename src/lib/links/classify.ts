@@ -71,7 +71,11 @@ function guess(purpose: LinkPurpose): Classification {
  * the brochure's own label is better evidence than a path heuristic.
  */
 export function resolvePurpose(rule: Classification, aiHint: LinkPurpose | null | undefined): LinkPurpose {
-  if (rule.certain || !aiHint || aiHint === "unknown") return rule.purpose;
+  if (!aiHint || aiHint === "unknown") return rule.purpose;
+  // A LINE/LinkedIn channel printed as "explore available roles" is how this company shares jobs.
+  // It still never becomes an application form.
+  if (rule.purpose === "social_contact" && aiHint === "careers") return "careers";
+  if (rule.certain) return rule.purpose;
   return aiHint;
 }
 

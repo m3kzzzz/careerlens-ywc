@@ -31,8 +31,8 @@ export function BatchScreen({ batchId }: { batchId: string }) {
     );
   }
 
-  const { batch, photos, extractions, openReview, companyCount } = data;
-  const summary = summarizeBatch(photos, extractions);
+  const { batch, photos, extractions, openReview, companyCount, groupedNames } = data;
+  const summary = summarizeBatch(photos, extractions, groupedNames);
   const processing = batch.status === "processing" && !summary.finished;
   const percent = summary.total ? Math.round(((summary.read + summary.failed) / summary.total) * 100) : 0;
   const allFailed = summary.finished && summary.read === 0;
@@ -246,7 +246,7 @@ export function BatchScreen({ batchId }: { batchId: string }) {
         {/* Results */}
         {summary.read + summary.failed > 0 && (
           <section className="flex flex-col gap-3">
-            <div className="flex items-baseline justify-between gap-3">
+            <div className="flex flex-col gap-0.5 lg:flex-row lg:items-baseline lg:justify-between lg:gap-3">
               <h2 className="text-lg font-semibold">What we read</h2>
               <span className="text-xs text-muted">Values marked Check were hard to read. Nothing is filled in that wasn&apos;t printed.</span>
             </div>

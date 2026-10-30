@@ -88,6 +88,17 @@ describe("summarizeBatch", () => {
     ]);
   });
 
+  it("lists photos under the company grouping chose, not the brand printed on them", () => {
+    const ex = new Map([
+      ["1", extraction({ companies: [company("Mizuhada Group")] })],
+      ["2", extraction({ companies: [company("MizuMi")], opportunities: [{ companyName: null, title: { value: "Data Analysis", status: "auto" }, status: "not_specified", unparsedDates: [], requirements: [], skills: [] }] })],
+    ]);
+    const grouped = new Map([["1", "Mizuhada Group"], ["2", "Mizuhada Group"]]);
+    expect(summarizeBatch([photo("1"), photo("2")], ex, grouped).discovered).toEqual([
+      { name: "Mizuhada Group", photoCount: 2, titles: ["Data Analysis"], hasApplicationForm: false, uncertain: false },
+    ]);
+  });
+
   it("is finished when every photo is read or failed", () => {
     expect(summarizeBatch([photo("1"), photo("2", { status: "failed" })], new Map()).finished).toBe(true);
   });

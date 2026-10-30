@@ -8,7 +8,8 @@ import type { DecodedQr } from "@/lib/extraction/types";
 
 export const DEFAULT_MODEL = "gemini-3.6-flash";
 /** Used once when the main model is overloaded or out of quota ("none" disables). */
-export const DEFAULT_FALLBACK_MODEL = "gemini-2.5-flash";
+// gemini-2.5-flash is listed but returns 404 for new API keys, so the fallback is 3.5.
+export const DEFAULT_FALLBACK_MODEL = "gemini-3.5-flash";
 // Two attempts (main + fallback) must fit in the route's 60 s limit.
 const REQUEST_TIMEOUT_MS = 25_000;
 
@@ -52,9 +53,16 @@ export async function extractWithGemini(input: {
   } catch (err) {
     // Demand spikes (503) and per-model quota (429) are model-specific: try the fallback model once.
     const code = err instanceof ExtractionFailure ? err.error.code : null;
-    if (!fallbackModel || (code !== "upstream" && code !== "rate_limited") || input.signal?.aborted) throw err;
+    if (!fallbackModel || (code !== "upstream" && code !== "rate_limited" && code !== "quota_exhausted") || input.signal?.aborted) throw err;
     console.warn(`[extract] ${model} unavailable (${code}); trying ${fallbackModel}`);
-    return { result: await callModel(apiKey, fallbackModel, input), model: fallbackModel };
+    try {
+      return { result: await callModel(apiKey, fallbackModel, input), model: fallbackModel };
+    } catch (fallbackErr) {
+      // A broken fallback must never turn a temporary problem into a fatal one: report the main model's error.
+      const reason = fallbackErr instanceof ExtractionFailure ? fallbackErr.error.code : "error";
+      console.warn(`[extract] fallback ${fallbackModel} failed (${reason}); reporting ${model}'s error`);
+      throw err;
+    }
   }
 }
 
@@ -127,12 +135,17 @@ function toFailure(err: unknown, model: string, timedOut: boolean): ExtractionFa
     // Log the upstream reason (never the key) so failures can be diagnosed.
     console.warn(`[extract] ${model} → ${err.status}: ${msg.replace(/\s+/g, " ").slice(0, 200)}`);
     if (err.status === 429) {
-      return new ExtractionFailure({
-        code: "rate_limited",
-        message: "Gemini's rate limit was reached.",
-        retryable: true,
-        retryAfterMs: parseRetryDelay(msg),
-      });
+      const retryAfterMs = parseRetryDelay(msg);
+      // A per-day quota can't be waited out within a batch: say so instead of retrying for hours.
+      if (/PerDay/i.test(msg) || (retryAfterMs ?? 0) > 10 * 60 * 1000) {
+        const hours = retryAfterMs ? Math.max(1, Math.round(retryAfterMs / 3_600_000)) : null;
+        return new ExtractionFailure({
+          code: "quota_exhausted",
+          message: `This API key has used its Gemini daily limit${hours ? `. It resets in about ${hours} hour${hours === 1 ? "" : "s"}` : ""}. Retry then, or enable billing for a higher limit.`,
+          retryable: false,
+        });
+      }
+      return new ExtractionFailure({ code: "rate_limited", message: "Gemini's rate limit was reached.", retryable: true, retryAfterMs });
     }
     if (err.status === 404 || /not found|is not supported/i.test(msg)) {
       return new ExtractionFailure({

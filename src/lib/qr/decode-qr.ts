@@ -1,6 +1,6 @@
 "use client";
 
-import { prepareZXingModule, readBarcodes } from "zxing-wasm/reader";
+import { prepareZXingModule, readBarcodes, type ReaderOptions } from "zxing-wasm/reader";
 import type { DecodedQr } from "@/domain/types";
 
 let prepared = false;
@@ -27,28 +27,42 @@ export function regionName(cx: number, cy: number, width: number, height: number
   return row === "middle" ? `middle-${col}` : `${row}-${col}`;
 }
 
+const BASE_OPTIONS: ReaderOptions = {
+  formats: ["QRCode", "MicroQRCode"],
+  tryHarder: true,
+  tryRotate: true,
+  tryInvert: true,
+  tryDownscale: true,
+  maxNumberOfSymbols: 12,
+};
+
+/**
+ * Booth photos are angled, glossy and often use stylized codes. A single pass
+ * misses some of them (verified on real job-fair photos), so we run three
+ * binarization strategies and merge what they find.
+ */
+const PASSES: ReaderOptions[] = [
+  BASE_OPTIONS,
+  { ...BASE_OPTIONS, tryDenoise: true },
+  { ...BASE_OPTIONS, binarizer: "GlobalHistogram" },
+];
+
 /** Decode every QR code in an image. Several codes per brochure are common. */
 export async function decodeQrCodes(image: ImageData): Promise<DecodedQr[]> {
   ensureModule();
-  const results = await readBarcodes(image, {
-    formats: ["QRCode", "MicroQRCode"],
-    tryHarder: true,
-    tryRotate: true,
-    tryInvert: true,
-    tryDownscale: true,
-    maxNumberOfSymbols: 12,
-  });
-
   const seen = new Set<string>();
   const codes: DecodedQr[] = [];
-  for (const r of results) {
-    const text = r.text?.trim();
-    if (!r.isValid || !text || seen.has(text)) continue;
-    seen.add(text);
-    const { topLeft, topRight, bottomLeft, bottomRight } = r.position;
-    const cx = (topLeft.x + topRight.x + bottomLeft.x + bottomRight.x) / 4;
-    const cy = (topLeft.y + topRight.y + bottomLeft.y + bottomRight.y) / 4;
-    codes.push({ text, region: regionName(cx, cy, image.width, image.height) });
+  for (const options of PASSES) {
+    const results = await readBarcodes(image, options);
+    for (const r of results) {
+      const text = r.text?.trim();
+      if (!r.isValid || !text || seen.has(text)) continue;
+      seen.add(text);
+      const { topLeft, topRight, bottomLeft, bottomRight } = r.position;
+      const cx = (topLeft.x + topRight.x + bottomLeft.x + bottomRight.x) / 4;
+      const cy = (topLeft.y + topRight.y + bottomLeft.y + bottomRight.y) / 4;
+      codes.push({ text, region: regionName(cx, cy, image.width, image.height) });
+    }
   }
   return codes;
 }

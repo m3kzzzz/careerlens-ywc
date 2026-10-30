@@ -47,7 +47,7 @@ export function photoStatusLabel(state: PhotoState, photo: Photo): string {
     case "reading":
       return photo.prepared ? "Reading" : "Preparing";
     case "retrying":
-      return `Retrying · ${photo.attempts}/${MAX_AUTO_ATTEMPTS}`;
+      return photo.error?.code === "rate_limited" ? "Waiting · Gemini limit" : `Retrying · ${photo.attempts}/${MAX_AUTO_ATTEMPTS}`;
     case "queued":
       return "Waiting";
     case "no_company":

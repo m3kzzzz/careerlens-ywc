@@ -195,7 +195,7 @@ function DetailBody({ companyId }: { companyId: string }) {
           {/* 1. Apply */}
           <section id="apply" className="flex scroll-mt-4 flex-col gap-2.5 lg:gap-3">
             <h2 className="text-[17px] font-semibold lg:text-[19px]">Apply</h2>
-            {company.opps.length === 0 && company.generalApplyLinks.length === 0 && (
+            {company.opps.length === 0 && company.generalApplyLinks.length === 0 && company.generalCareerLinks.length === 0 && (
               <p className="rounded-2xl border border-dashed border-line bg-surface px-4 py-3 text-[13px] text-muted">
                 No positions or application links were found in your photos for this company.
               </p>
@@ -213,6 +213,20 @@ function DetailBody({ companyId }: { companyId: string }) {
                 <VerificationNote link={l} />
               </article>
             ))}
+            {company.generalCareerLinks.map((l) => {
+              const label = l.sources.find((s) => s.kind === "photo")?.quote;
+              return (
+                <article key={l.id} className="flex flex-col gap-2 rounded-[18px] border border-line bg-surface p-3.5 lg:rounded-2xl lg:p-4">
+                  <div className="font-semibold">Explore careers</div>
+                  <p className="text-xs text-muted">
+                    {label ? `Printed as “${label}”. ` : ""}A careers channel, not a direct application form.
+                  </p>
+                  <ExternalButton href={l.rawUrl} tone="careers">
+                    Open {l.normalizedUrl.split("/")[0]}
+                  </ExternalButton>
+                </article>
+              );
+            })}
           </section>
 
           {/* 2. Events */}

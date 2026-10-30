@@ -17,6 +17,8 @@ export type BatchData =
       openReview: number;
       /** Companies this batch's photos were grouped into. */
       companyCount: number;
+      /** photoId → name of the company it was grouped into. */
+      groupedNames: Map<string, string>;
     };
 
 /** Live view of one batch straight from IndexedDB. */
@@ -30,6 +32,10 @@ export function useBatchData(batchId: string): BatchData {
       db.extractions.where("batchId").equals(batchId).toArray(),
       db.reviewItems.where("batchId").equals(batchId).filter((r) => r.state === "open").count(),
     ]);
+    const companyIds = [...new Set(photos.map((p) => p.companyId).filter((x): x is string => !!x))];
+    const companies = (await db.companies.bulkGet(companyIds)).filter((c) => !!c);
+    const nameById = new Map(companies.map((c) => [c!.id, c!.name.value]));
+    const groupedNames = new Map(photos.flatMap((p) => (p.companyId && nameById.has(p.companyId) ? [[p.id, nameById.get(p.companyId)!] as const] : [])));
     const order = new Map(batch.photoIds.map((id, i) => [id, i]));
     photos.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
     return {
@@ -38,7 +44,8 @@ export function useBatchData(batchId: string): BatchData {
       photos,
       extractions: new Map(records.map((r) => [r.photoId, r.extraction])),
       openReview,
-      companyCount: new Set(photos.map((p) => p.companyId).filter(Boolean)).size,
+      companyCount: companyIds.length,
+      groupedNames,
     };
   }, [batchId]);
   return data ?? { state: "loading" };

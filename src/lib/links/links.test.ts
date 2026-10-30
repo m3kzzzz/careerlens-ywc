@@ -63,6 +63,13 @@ describe("classifyTarget", () => {
     expect(resolvePurpose(companyPage, null)).toBe("careers");
   });
 
+  it("treats a social channel labelled as a jobs channel as careers, never as an application form", () => {
+    const line = classifyTarget(parseTarget("https://lin.ee/BcdsgE3"));
+    expect(resolvePurpose(line, "careers")).toBe("careers");
+    expect(resolvePurpose(line, "application_form")).toBe("social_contact");
+    expect(resolvePurpose(line, null)).toBe("social_contact");
+  });
+
   it("never marks a decoded link as verified", () => {
     const t = parseTarget("https://forms.gle/x");
     expect(initialVerification(t, classifyTarget(t))).toBe("from_photo");

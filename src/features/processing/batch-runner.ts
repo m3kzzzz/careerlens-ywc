@@ -17,6 +17,8 @@ import { isBatchFatal, retryDelayMs } from "./retry-policy";
  */
 
 const CONCURRENCY = 2;
+/** When Gemini rate-limits one request, every worker waits; hammering would only extend the limit. */
+let pausedUntil = 0;
 const controllers = new Map<string, AbortController>();
 
 function newId() {
@@ -153,6 +155,8 @@ async function processPhoto(photo: Photo, signal: AbortSignal): Promise<ExtractE
   let attempts = photo.attempts;
   for (;;) {
     if (signal.aborted) return requeue(photo.id);
+    if (pausedUntil > Date.now()) await sleep(pausedUntil - Date.now(), signal);
+    if (signal.aborted) return requeue(photo.id);
     attempts += 1;
     await db.photos.update(photo.id, { attempts, retryAt: undefined });
 
@@ -184,6 +188,7 @@ async function processPhoto(photo: Photo, signal: AbortSignal): Promise<ExtractE
       return null;
     }
     await db.photos.update(photo.id, { error, retryAt: Date.now() + delay });
+    if (res.error.code === "rate_limited") pausedUntil = Math.max(pausedUntil, Date.now() + delay);
     await sleep(delay, signal);
   }
 }

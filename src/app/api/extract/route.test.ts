@@ -78,8 +78,17 @@ describe("POST /api/extract", () => {
       .mockResolvedValueOnce({ text: JSON.stringify(aiJson) });
     const body = await (await POST(request())).json();
     expect(body.ok).toBe(true);
-    expect(body.extraction.model).toBe("gemini-2.5-flash");
-    expect(generateContent.mock.calls.map((c) => c[0].model)).toEqual(["test-flash", "gemini-2.5-flash"]);
+    expect(body.extraction.model).toBe("gemini-3.5-flash");
+    expect(generateContent.mock.calls.map((c) => c[0].model)).toEqual(["test-flash", "gemini-3.5-flash"]);
+  });
+
+  it("keeps the main model's retryable error when the fallback model is unavailable", async () => {
+    generateContent
+      .mockRejectedValueOnce(new ApiError({ message: "high demand UNAVAILABLE", status: 503 }))
+      .mockRejectedValueOnce(new ApiError({ message: "models/gemini-3.5-flash is no longer available to new users", status: 404 }));
+    const res = await POST(request());
+    expect(res.status).toBe(502);
+    expect((await res.json()).error).toMatchObject({ code: "upstream", retryable: true });
   });
 
   it("reports a busy upstream with a retry hint when both models fail", async () => {
@@ -88,6 +97,14 @@ describe("POST /api/extract", () => {
     expect(res.status).toBe(502);
     expect((await res.json()).error).toMatchObject({ code: "upstream", retryable: true, retryAfterMs: 8000 });
     expect(generateContent).toHaveBeenCalledTimes(2);
+  });
+
+  it("reports a used-up daily quota clearly instead of retrying for hours", async () => {
+    generateContent.mockRejectedValue(new ApiError({ message: '{"quotaId":"GenerateRequestsPerDayPerProjectPerModel-FreeTier","retryDelay":"48616s"}', status: 429 }));
+    const body = await (await POST(request())).json();
+    expect(body.error).toMatchObject({ code: "quota_exhausted", retryable: false });
+    expect(body.error.message).toMatch(/resets in about 14 hours/);
+    expect(generateContent).toHaveBeenCalledTimes(2); // the fallback model has its own quota, so it is tried once
   });
 
   it("rejects output that doesn't match the schema instead of using it", async () => {
