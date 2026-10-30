@@ -11,6 +11,7 @@ import type {
 import { daysUntil, deadlineLabel, formatShortDate } from "@/lib/dates/deadline";
 import type { Library } from "@/lib/db/library";
 import { fieldValue } from "@/lib/grouping/plan-commit";
+import { linkHref } from "@/lib/links/normalize";
 
 /**
  * Read-only view models for Companies, company details and My Calendar,
@@ -112,9 +113,9 @@ export function jobLinkFor(opp: Opportunity, links: Link[]): JobLink {
       l.opportunityIds.includes(opp.id) &&
       l.purpose === "careers" &&
       l.verification === "verified" &&
-      isSafeHttpUrl(l.rawUrl),
+      isSafeHttpUrl(linkHref(l.rawUrl) ?? ""),
   );
-  if (jd) return { kind: "external", href: jd.rawUrl };
+  if (jd) return { kind: "external", href: linkHref(jd.rawUrl)! };
   if (opp.sources.length > 0) return { kind: "internal", href: positionHref(opp.companyId, opp.id) };
   return { kind: "plain" };
 }

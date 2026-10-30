@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { classifyTarget, initialVerification, resolvePurpose } from "./classify";
-import { parseTarget, registrableDomain } from "./normalize";
+import { linkHref, parseTarget, registrableDomain } from "./normalize";
 
 const purpose = (raw: string) => classifyTarget(parseTarget(raw)).purpose;
 
@@ -29,6 +29,17 @@ describe("parseTarget", () => {
     expect(registrableDomain("careers.kanokdigital.co.th")).toBe("kanokdigital.co.th");
     expect(registrableDomain("www.knk.ac.th")).toBe("knk.ac.th");
     expect(registrableDomain("jobs.siamdatalabs.ai")).toBe("siamdatalabs.ai");
+  });
+});
+
+describe("linkHref", () => {
+  it("turns printed bare domains into absolute links so they never resolve inside this site", () => {
+    expect(linkHref("beamcheckout.com")).toBe("https://beamcheckout.com/");
+    expect(linkHref("https://forms.gle/x")).toBe("https://forms.gle/x");
+    expect(linkHref("careers@agoda.com")).toBe("mailto:careers@agoda.com");
+    expect(linkHref("tel:+66 2 123 4567")).toBe("tel:+6621234567");
+    expect(linkHref("javascript:alert(1)")).toBeNull();
+    expect(linkHref("BEGIN:VCARD")).toBeNull();
   });
 });
 

@@ -81,3 +81,16 @@ export function displayUrl(target: ParsedTarget): string {
       return target.text.length > 60 ? `${target.text.slice(0, 57)}…` : target.text;
   }
 }
+
+/**
+ * Safe absolute href for a stored link. Brochures often print bare domains
+ * ("beamcheckout.com"); used as-is, a browser would treat them as a path on
+ * this site. Returns null for anything that isn't a web, email or phone target.
+ */
+export function linkHref(raw: string): string | null {
+  const t = parseTarget(raw);
+  if (t.kind === "web") return t.url;
+  if (t.kind === "email") return `mailto:${t.address}`;
+  if (t.kind === "phone") return `tel:${t.number}`;
+  return null;
+}

@@ -15,6 +15,7 @@ import { setInterested } from "@/lib/db/interests";
 import { useLibrary } from "@/lib/db/use-library";
 import { daysUntil, formatShortDate } from "@/lib/dates/deadline";
 import { cn } from "@/lib/cn";
+import { linkHref } from "@/lib/links/normalize";
 import { useMounted } from "@/lib/use-mounted";
 import { OppStatusBadge } from "./company-card";
 import { buildCompanyViews, type CompanyView, type EventView, type OppView } from "./company-model";
@@ -328,7 +329,9 @@ function SummaryItem({ href, icon, tone, children }: { href: string; icon: React
   );
 }
 
-function ExternalButton({ href, tone, children }: { href: string; tone: "primary" | "careers" | "neutral"; children: React.ReactNode }) {
+function ExternalButton({ href: raw, tone, children }: { href: string; tone: "primary" | "careers" | "neutral"; children: React.ReactNode }) {
+  const href = linkHref(raw);
+  if (!href) return <span className="text-xs text-muted">This link can&apos;t be opened: “{raw}”</span>;
   return (
     <a
       href={href}
@@ -522,7 +525,7 @@ function contactAction(c: Contact): { title: string; href?: string } {
 }
 
 function ContactSection({ company, sourceLabel }: { company: CompanyView; sourceLabel: (s: SourceRef[]) => string }) {
-  const social = company.links.filter((l) => l.purpose === "social_contact" && /^https?:/i.test(l.rawUrl));
+  const social = company.links.filter((l) => l.purpose === "social_contact" && /^https?:/i.test(linkHref(l.rawUrl) ?? ""));
   if (company.contacts.length === 0 && social.length === 0) return null;
   return (
     <section className="flex flex-col gap-2.5">
@@ -558,7 +561,7 @@ function ContactSection({ company, sourceLabel }: { company: CompanyView; source
         {social.map((l) => (
           <a
             key={l.id}
-            href={l.rawUrl}
+            href={linkHref(l.rawUrl)!}
             target="_blank"
             rel="noopener noreferrer"
             className="flex min-h-[52px] items-center gap-3 border-b border-chip px-3.5 py-2 last:border-b-0 hover:bg-canvas lg:px-[18px]"
@@ -573,18 +576,18 @@ function ContactSection({ company, sourceLabel }: { company: CompanyView; source
 }
 
 function AboutLinks({ links }: { links: StoredLink[] }) {
-  const site = links.find((l) => l.purpose === "company_info" && /^https?:/i.test(l.rawUrl));
+  const site = links.find((l) => l.purpose === "company_info" && /^https?:/i.test(linkHref(l.rawUrl) ?? ""));
   const linkedin = links.find((l) => /linkedin\.com\/company/i.test(l.rawUrl));
   if (!site && !linkedin) return null;
   return (
     <div className="flex gap-2">
       {site && (
-        <a href={site.rawUrl} target="_blank" rel="noopener noreferrer" className="rounded-[10px] border border-line-strong px-3 py-2 text-sm font-medium hover:bg-canvas">
+        <a href={linkHref(site.rawUrl)!} target="_blank" rel="noopener noreferrer" className="rounded-[10px] border border-line-strong px-3 py-2 text-sm font-medium hover:bg-canvas">
           Website ↗
         </a>
       )}
       {linkedin && (
-        <a href={linkedin.rawUrl} target="_blank" rel="noopener noreferrer" className="rounded-[10px] border border-line-strong px-3 py-2 text-sm font-medium hover:bg-canvas">
+        <a href={linkHref(linkedin.rawUrl) ?? undefined} target="_blank" rel="noopener noreferrer" className="rounded-[10px] border border-line-strong px-3 py-2 text-sm font-medium hover:bg-canvas">
           LinkedIn ↗
         </a>
       )}
