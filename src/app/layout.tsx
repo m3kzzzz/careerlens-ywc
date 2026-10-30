@@ -22,6 +22,18 @@ export const metadata: Metadata = {
   description:
     "Snap job fair brochures. CareerLens reads them, scans QR codes and organizes opportunities by company.",
   applicationName: "CareerLens",
+  icons: {
+    // app/favicon.ico is linked automatically.
+    icon: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  // iPhone Safari "Add to Home Screen" opens full screen with these.
+  appleWebApp: {
+    capable: true,
+    title: "CareerLens",
+    statusBarStyle: "default",
+  },
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {
