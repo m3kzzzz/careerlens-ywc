@@ -96,7 +96,7 @@ describe("POST /api/extract", () => {
     const res = await POST(request());
     expect(res.status).toBe(502);
     expect((await res.json()).error).toMatchObject({ code: "upstream", retryable: true, retryAfterMs: 8000 });
-    expect(generateContent).toHaveBeenCalledTimes(4); // main + 3 fallbacks
+    expect(generateContent).toHaveBeenCalledTimes(5); // main + 4 fallbacks
   });
 
   it("tries the next fallback when one is out of quota, and skips retired models", async () => {
@@ -116,7 +116,7 @@ describe("POST /api/extract", () => {
     const body = await (await POST(request())).json();
     expect(body.error).toMatchObject({ code: "quota_exhausted", retryable: false });
     expect(body.error.message).toMatch(/resets in about 14 hours/);
-    expect(generateContent).toHaveBeenCalledTimes(4); // each fallback model has its own quota
+    expect(generateContent).toHaveBeenCalledTimes(5); // each fallback model has its own quota
   });
 
   it("rejects output that doesn't match the schema instead of using it", async () => {

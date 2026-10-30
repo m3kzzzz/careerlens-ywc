@@ -12,7 +12,7 @@ export const DEFAULT_MODEL = "gemini-3.6-flash";
  * Tried in order when the main model is overloaded or out of quota (free quotas are per model).
  * Comma-separated in GEMINI_FALLBACK_MODEL; "none" disables.
  */
-export const DEFAULT_FALLBACK_MODELS = ["gemini-3-flash-preview", "gemini-3.5-flash", "gemini-3.5-flash-lite"];
+export const DEFAULT_FALLBACK_MODELS = ["gemini-3-flash-preview", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.5-flash"];
 /** Listed by the API but rejected for new keys (404); ignored even if configured. */
 const RETIRED_MODELS = new Set(["gemini-2.5-flash"]);
 // Attempts must fit in the route's 60 s limit; no new attempt starts after this budget.

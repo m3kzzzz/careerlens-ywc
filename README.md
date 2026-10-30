@@ -85,7 +85,7 @@ design-reference/      Approved Claude Design exports (mobile, desktop, design s
 | --- | --- | --- |
 | `GEMINI_API_KEY` | Yes, for reading photos | Server-side only. Never prefix with `NEXT_PUBLIC_`. |
 | `GEMINI_MODEL` | No | Defaults to `gemini-3.6-flash`. Run `npm run check-model` to confirm it is available to your key. |
-| `GEMINI_FALLBACK_MODEL` | No | Comma-separated models tried in order when the main model is overloaded (503) or out of quota (429). Defaults to `gemini-3-flash-preview,gemini-3.5-flash,gemini-3.5-flash-lite`; set `none` to disable. |
+| `GEMINI_FALLBACK_MODEL` | No | Comma-separated models tried in order when the main model is overloaded (503) or out of quota (429). Defaults to `gemini-3-flash-preview,gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-3.5-flash`; set `none` to disable. |
 
 ## Privacy
 
