@@ -7,10 +7,8 @@ import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { cn } from "@/lib/cn";
 import { MAX_PHOTOS_PER_BATCH } from "@/lib/upload/constants";
 import type { LibrarySummary } from "@/lib/db/queries";
-import { CameraIcon } from "@/components/icons/camera-icon";
 import { FilePicker } from "./file-picker";
 import { SkipNotices } from "./skip-notices";
-import { SlotMeter } from "./slot-meter";
 import { useFileDrop } from "./use-file-drop";
 import type { SkipMessage } from "@/lib/upload/skip-messages";
 
@@ -33,7 +31,7 @@ export function StartView(props: StartViewProps) {
   );
 }
 
-function StartMobile({ batchNumber, summary, adding, messages, onFiles, onDismissMessages }: StartViewProps) {
+function StartMobile({ summary, adding, messages, onFiles, onDismissMessages }: StartViewProps) {
   const hasLibrary = !!summary && summary.companyCount > 0;
   // N1: first visit (nothing saved yet) explains the flow; M1: returning users see their batch number.
   const firstTime = !!summary && summary.batchCount === 0 && summary.companyCount === 0;
@@ -41,7 +39,6 @@ function StartMobile({ batchNumber, summary, adding, messages, onFiles, onDismis
     <div className="mx-auto w-full max-w-[560px] lg:hidden">
       <header className="flex h-14 items-center justify-between px-4">
         <Logo size="sm" />
-        <span className="text-xs text-muted">Saved on this phone</span>
       </header>
 
       <div className="flex flex-col gap-4 px-4 pt-2">
@@ -56,53 +53,25 @@ function StartMobile({ batchNumber, summary, adding, messages, onFiles, onDismis
           </p>
         </div>
 
+        {/* One picker: phones offer camera or gallery from the system sheet. */}
         <FilePicker
-          mode="camera"
+          mode="library"
           onFiles={onFiles}
           disabled={adding}
           className="relative flex h-[148px] flex-col justify-end gap-0.5 overflow-hidden rounded-[20px] bg-primary p-[18px] text-white shadow-hero transition-colors active:bg-primary-hover aria-disabled:opacity-70"
         >
           <span className="absolute left-[18px] top-[18px] flex size-[52px] items-center justify-center rounded-2xl bg-white/16">
-            <CameraIcon size={26} />
+            <ImageIcon size={26} strokeWidth={1.9} aria-hidden="true" />
           </span>
           <span
             aria-hidden="true"
             className="absolute -right-[30px] -top-[30px] size-[140px] rounded-full bg-[linear-gradient(135deg,rgba(99,102,241,0),rgba(6,182,212,0.45))]"
           />
-          <span className="text-xl font-semibold tracking-[-0.01em]">Take photo</span>
-          <span className="text-[13px] text-white/85">Open your camera at the booth</span>
+          <span className="text-xl font-semibold tracking-[-0.01em]">Upload photos</span>
+          <span className="text-[13px] text-white/85" aria-live="polite">
+            {adding ? "Checking photos…" : "Take new photos or choose from your gallery"}
+          </span>
         </FilePicker>
-
-        <FilePicker
-          mode="library"
-          onFiles={onFiles}
-          disabled={adding}
-          className="flex h-20 items-center gap-3.5 rounded-[20px] border border-line bg-surface px-4 shadow-card transition-colors active:bg-canvas aria-disabled:opacity-70"
-        >
-          <span className="flex size-12 flex-none items-center justify-center rounded-[14px] bg-primary-soft text-primary">
-            <ImageIcon size={22} strokeWidth={1.9} aria-hidden="true" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-base font-semibold">Upload photos</span>
-            <span className="block text-[13px] text-muted">
-              Choose up to {MAX_PHOTOS_PER_BATCH} from your gallery
-            </span>
-          </span>
-          <ChevronRight size={18} className="text-muted" aria-hidden="true" />
-        </FilePicker>
-
-        <div className="flex items-center justify-between gap-3 px-0.5">
-          <SlotMeter used={0} />
-          <span className="text-xs text-muted" aria-live="polite">
-            {adding ? (
-              "Checking photos…"
-            ) : (
-              <>
-                <b className="font-semibold text-ink">0 / {MAX_PHOTOS_PER_BATCH}</b> {firstTime ? "photos" : `in Batch ${batchNumber}`}
-              </>
-            )}
-          </span>
-        </div>
 
         <SkipNotices messages={messages} onDismiss={onDismissMessages} />
 
@@ -149,7 +118,7 @@ function StartMobile({ batchNumber, summary, adding, messages, onFiles, onDismis
   );
 }
 
-function StartDesktop({ batchNumber, summary, adding, messages, onFiles, onDismissMessages }: StartViewProps) {
+function StartDesktop({ summary, adding, messages, onFiles, onDismissMessages }: StartViewProps) {
   const { isDragging, handlers } = useFileDrop(onFiles, !adding);
   const hasLibrary = !!summary && summary.batchCount > 0;
 
@@ -197,28 +166,13 @@ function StartDesktop({ batchNumber, summary, adding, messages, onFiles, onDismi
               <ImageIcon size={18} strokeWidth={2} aria-hidden="true" />
               Upload photos
             </FilePicker>
-            <FilePicker
-              mode="camera"
-              onFiles={onFiles}
-              disabled={adding}
-              className="inline-flex h-[52px] items-center gap-2 rounded-xl border border-primary-line bg-surface px-[22px] text-base font-semibold text-primary-hover transition-colors hover:bg-primary-tint aria-disabled:opacity-60"
-            >
-              <CameraIcon size={18} />
-              Take photo
-            </FilePicker>
           </div>
           <span className="text-[13px] text-muted">
             {adding ? "Checking photos…" : "or drag and drop anywhere in this box · JPG, PNG, WebP or HEIC"}
           </span>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-4 px-3 pb-1.5 pt-4">
-          <div className="flex items-center gap-3.5">
-            <SlotMeter used={0} size="md" />
-            <span className="text-[13px] text-ink-2">
-              <b className="font-semibold">0 / {MAX_PHOTOS_PER_BATCH}</b> photos in Batch {batchNumber}
-            </span>
-          </div>
+        <div className="flex flex-wrap items-center justify-center gap-4 px-3 pb-1.5 pt-4">
           <span className="inline-flex items-center gap-2 text-[13px] text-muted">
             <RefreshCw size={15} aria-hidden="true" />
             {hasLibrary

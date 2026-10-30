@@ -6,7 +6,6 @@ import { MAX_PHOTOS_PER_BATCH } from "@/lib/upload/constants";
 import type { LibrarySummary } from "@/lib/db/queries";
 import type { SkipMessage } from "@/lib/upload/skip-messages";
 import type { DraftPhoto } from "./batch-draft-context";
-import { CameraIcon } from "@/components/icons/camera-icon";
 import { FilePicker } from "./file-picker";
 import { PhotoTile } from "./photo-tile";
 import { SkipNotices } from "./skip-notices";
@@ -100,15 +99,6 @@ function BatchMobile({
           {!full && (
             <>
               <FilePicker
-                mode="camera"
-                onFiles={onFiles}
-                disabled={adding}
-                className="flex aspect-[4/5] flex-col items-center justify-center gap-1.5 rounded-xl bg-primary text-[13px] font-semibold text-white active:bg-primary-hover aria-disabled:opacity-60"
-              >
-                <CameraIcon size={24} />
-                Take photo
-              </FilePicker>
-              <FilePicker
                 mode="library"
                 onFiles={onFiles}
                 disabled={adding}
@@ -119,7 +109,7 @@ function BatchMobile({
                 ) : (
                   <ImageIcon size={22} strokeWidth={1.9} aria-hidden="true" />
                 )}
-                Upload
+                Add photos
               </FilePicker>
             </>
           )}
