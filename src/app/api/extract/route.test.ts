@@ -78,14 +78,14 @@ describe("POST /api/extract", () => {
       .mockResolvedValueOnce({ text: JSON.stringify(aiJson) });
     const body = await (await POST(request())).json();
     expect(body.ok).toBe(true);
-    expect(body.extraction.model).toBe("gemini-3.5-flash");
-    expect(generateContent.mock.calls.map((c) => c[0].model)).toEqual(["test-flash", "gemini-3.5-flash"]);
+    expect(body.extraction.model).toBe("gemini-3-flash-preview");
+    expect(generateContent.mock.calls.map((c) => c[0].model)).toEqual(["test-flash", "gemini-3-flash-preview"]);
   });
 
   it("keeps the main model's retryable error when the fallback model is unavailable", async () => {
     generateContent
       .mockRejectedValueOnce(new ApiError({ message: "high demand UNAVAILABLE", status: 503 }))
-      .mockRejectedValueOnce(new ApiError({ message: "models/gemini-3.5-flash is no longer available to new users", status: 404 }));
+      .mockRejectedValue(new ApiError({ message: "is no longer available to new users", status: 404 }));
     const res = await POST(request());
     expect(res.status).toBe(502);
     expect((await res.json()).error).toMatchObject({ code: "upstream", retryable: true });
@@ -96,7 +96,19 @@ describe("POST /api/extract", () => {
     const res = await POST(request());
     expect(res.status).toBe(502);
     expect((await res.json()).error).toMatchObject({ code: "upstream", retryable: true, retryAfterMs: 8000 });
-    expect(generateContent).toHaveBeenCalledTimes(2);
+    expect(generateContent).toHaveBeenCalledTimes(4); // main + 3 fallbacks
+  });
+
+  it("tries the next fallback when one is out of quota, and skips retired models", async () => {
+    process.env.GEMINI_FALLBACK_MODEL = "gemini-2.5-flash, fb-a, fb-b";
+    generateContent
+      .mockRejectedValueOnce(new ApiError({ message: '{"quotaId":"GenerateRequestsPerDayPerProjectPerModel-FreeTier"}', status: 429 }))
+      .mockRejectedValueOnce(new ApiError({ message: '{"quotaId":"GenerateRequestsPerDayPerProjectPerModel-FreeTier"}', status: 429 }))
+      .mockResolvedValueOnce({ text: JSON.stringify(aiJson) });
+    const body = await (await POST(request())).json();
+    delete process.env.GEMINI_FALLBACK_MODEL;
+    expect(body.extraction.model).toBe("fb-b");
+    expect(generateContent.mock.calls.map((c) => c[0].model)).toEqual(["test-flash", "fb-a", "fb-b"]);
   });
 
   it("reports a used-up daily quota clearly instead of retrying for hours", async () => {
@@ -104,7 +116,7 @@ describe("POST /api/extract", () => {
     const body = await (await POST(request())).json();
     expect(body.error).toMatchObject({ code: "quota_exhausted", retryable: false });
     expect(body.error.message).toMatch(/resets in about 14 hours/);
-    expect(generateContent).toHaveBeenCalledTimes(2); // the fallback model has its own quota, so it is tried once
+    expect(generateContent).toHaveBeenCalledTimes(4); // each fallback model has its own quota
   });
 
   it("rejects output that doesn't match the schema instead of using it", async () => {

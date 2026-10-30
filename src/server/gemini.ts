@@ -8,9 +8,15 @@ import type { DecodedQr } from "@/lib/extraction/types";
 
 export const DEFAULT_MODEL = "gemini-3.6-flash";
 /** Used once when the main model is overloaded or out of quota ("none" disables). */
-// gemini-2.5-flash is listed but returns 404 for new API keys, so the fallback is 3.5.
-export const DEFAULT_FALLBACK_MODEL = "gemini-3.5-flash";
-// Two attempts (main + fallback) must fit in the route's 60 s limit.
+/**
+ * Tried in order when the main model is overloaded or out of quota (free quotas are per model).
+ * Comma-separated in GEMINI_FALLBACK_MODEL; "none" disables.
+ */
+export const DEFAULT_FALLBACK_MODELS = ["gemini-3-flash-preview", "gemini-3.5-flash", "gemini-3.5-flash-lite"];
+/** Listed by the API but rejected for new keys (404); ignored even if configured. */
+const RETIRED_MODELS = new Set(["gemini-2.5-flash"]);
+// Attempts must fit in the route's 60 s limit; no new attempt starts after this budget.
+const FALLBACK_BUDGET_MS = 32_000;
 const REQUEST_TIMEOUT_MS = 25_000;
 
 let client: GoogleGenAI | null = null;
@@ -18,8 +24,10 @@ let client: GoogleGenAI | null = null;
 export function geminiConfig() {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   const model = process.env.GEMINI_MODEL?.trim() || DEFAULT_MODEL;
-  const fallback = process.env.GEMINI_FALLBACK_MODEL?.trim() || DEFAULT_FALLBACK_MODEL;
-  return { apiKey, model, fallbackModel: fallback === "none" || fallback === model ? null : fallback };
+  const configured = process.env.GEMINI_FALLBACK_MODEL?.trim();
+  const list = configured === "none" ? [] : configured ? configured.split(",").map((m) => m.trim()) : DEFAULT_FALLBACK_MODELS;
+  const fallbackModels = [...new Set(list)].filter((m) => m && m !== model && !RETIRED_MODELS.has(m));
+  return { apiKey, model, fallbackModels };
 }
 
 function getClient(apiKey: string) {
@@ -40,7 +48,7 @@ export async function extractWithGemini(input: {
   qr: DecodedQr[];
   signal?: AbortSignal;
 }): Promise<{ result: AiPhotoExtraction; model: string }> {
-  const { apiKey, model, fallbackModel } = geminiConfig();
+  const { apiKey, model, fallbackModels } = geminiConfig();
   if (!apiKey) {
     throw new ExtractionFailure({
       code: "not_configured",
@@ -48,21 +56,25 @@ export async function extractWithGemini(input: {
       retryable: false,
     });
   }
+  const started = Date.now();
   try {
     return { result: await callModel(apiKey, model, input), model };
   } catch (err) {
-    // Demand spikes (503) and per-model quota (429) are model-specific: try the fallback model once.
+    // Demand spikes (503) and quotas (429) are per model: try the fallbacks in order.
     const code = err instanceof ExtractionFailure ? err.error.code : null;
-    if (!fallbackModel || (code !== "upstream" && code !== "rate_limited" && code !== "quota_exhausted") || input.signal?.aborted) throw err;
-    console.warn(`[extract] ${model} unavailable (${code}); trying ${fallbackModel}`);
-    try {
-      return { result: await callModel(apiKey, fallbackModel, input), model: fallbackModel };
-    } catch (fallbackErr) {
-      // A broken fallback must never turn a temporary problem into a fatal one: report the main model's error.
-      const reason = fallbackErr instanceof ExtractionFailure ? fallbackErr.error.code : "error";
-      console.warn(`[extract] fallback ${fallbackModel} failed (${reason}); reporting ${model}'s error`);
-      throw err;
+    if (code !== "upstream" && code !== "rate_limited" && code !== "quota_exhausted") throw err;
+    for (const fallback of fallbackModels) {
+      if (input.signal?.aborted || Date.now() - started > FALLBACK_BUDGET_MS) break;
+      console.warn(`[extract] ${model} unavailable (${code}); trying ${fallback}`);
+      try {
+        return { result: await callModel(apiKey, fallback, input), model: fallback };
+      } catch (fallbackErr) {
+        const reason = fallbackErr instanceof ExtractionFailure ? fallbackErr.error.code : "error";
+        console.warn(`[extract] fallback ${fallback} failed (${reason})`);
+      }
     }
+    // A broken fallback must never turn a temporary problem into a fatal one: report the main model's error.
+    throw err;
   }
 }
 
